@@ -75,4 +75,4 @@ function slot_to_time(string $label): ?string {
 }
 
     
-}
+
