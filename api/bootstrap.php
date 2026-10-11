@@ -35,4 +35,22 @@ function db(): PDO {
         $pdo->exec("SET time_zone = '+05:30'"); // keep NOW() in line with APP_TZ
     }
     return $pdo;
+    function require_method(string
+    $method):void{
+        $actual =
+    strtoupper($_SERVER['REQUEST_METHOD']
+    ?? '');
+        if ($actual !==
+    strtoupper($method)) {
+            header('Allow: ' .
+    strtoupper($method));
+            http_response_code(405);
+            echo json_encode([
+               'error' => 'Method not
+            allowed.'
+                ]);
+                exit;
+        }
+    }
+        
 }
