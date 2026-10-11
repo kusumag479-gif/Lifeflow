@@ -996,5 +996,176 @@ document.addEventListener("DOMContentLoaded", () => {
   route();
 });
 </script>
+<script>
+/* ---------- Real API layer (PHP + MySQL) ---------- */
+(function(){
+  const API = "api/";
+
+  async function api(path, opts){
+    opts = opts || {};
+    const init = { method: opts.method || "GET", credentials: "same-origin", headers: {} };
+    if(opts.data !== undefined){ init.headers["Content-Type"] = "application/json"; init.body = JSON.stringify(opts.data); }
+    let res;
+    try { res = await fetch(API + path, init); }
+    catch(e){ throw new Error("Can't reach the server. Please try again."); }
+    let json = {};
+    try { json = await res.json(); } catch(e){}
+    if(!res.ok){
+      const err = new Error(json.error || "Something went wrong.");
+      err.status = res.status;
+      throw err;
+    }
+    return json;
+  }
+
+  /* data loaders */
+  window.fetchGlobalStock = function(){ return api("stock.php").catch(function(){ return GLOBAL_STOCK; }); };
+  window.fetchEmergencyRequests = function(){ return api("emergency.php").catch(function(){ return []; }); };
+
+  let userCoords = null;
+  function getCoords(){
+    return new Promise(function(resolve){
+      if(userCoords || !navigator.geolocation) return resolve(userCoords);
+      navigator.geolocation.getCurrentPosition(
+        function(pos){ userCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude }; resolve(userCoords); },
+        function(){ resolve(null); },
+        { timeout: 4000 }
+      );
+    });
+  }
+  window.fetchBloodBanks = async function(){
+    const c = await getCoords();
+    const q = c ? "?lat=" + c.lat + "&lng=" + c.lng : "";
+    try { return await api("banks.php" + q); }
+    catch(e){ showToast(e.message); return []; }
+  };
+
+  /* booking slots */
+  let currentSlots = [];
+  function isoDate(y, m, d){ return y + "-" + String(m + 1).padStart(2, "0") + "-" + String(d).padStart(2, "0"); }
+  async function loadSlots(y, m, d){
+    if(!selectedBankId){ currentSlots = []; return; }
+    try { currentSlots = await api("slots.php?bank_id=" + encodeURIComponent(selectedBankId) + "&date=" + isoDate(y, m, d)); }
+    catch(e){ currentSlots = []; showToast(e.message); }
+  }
+  window.slotsForDate = function(){ return currentSlots; };
+  window.selectDate = async function(d){
+    if(!selectedBankId){ showToast("Pick a blood bank first (Find Blood, then Book slot)."); return; }
+    selectedDate = { y: viewYear, m: viewMonth, d: d };
+    selectedSlot = null;
+    renderCalendar();
+    await loadSlots(viewYear, viewMonth, d);
+    renderSlots();
+    updateSummary();
+  };
+
+  document.getElementById("confirm-booking").addEventListener("click", async function(e){
+    e.stopImmediatePropagation();
+    if(!selectedBankId || !selectedDate || !selectedSlot) return;
+    try {
+      const r = await api("book.php", { method: "POST", data: {
+        bankId: Number(selectedBankId),
+        date: isoDate(selectedDate.y, selectedDate.m, selectedDate.d),
+        time: selectedSlot
+      }});
+      showToast(r.message);
+      selectedSlot = null;
+      await loadSlots(selectedDate.y, selectedDate.m, selectedDate.d);
+      renderSlots(); updateSummary();
+    } catch(err){
+      if(err.status === 401){ showToast("Please log in to book."); location.hash = "login"; }
+      else showToast(err.message);
+      if(err.status === 409){
+        await loadSlots(selectedDate.y, selectedDate.m, selectedDate.d);
+        selectedSlot = null; renderSlots(); updateSummary();
+      }
+    }
+  }, true);
+
+  /* forms: register, login, emergency */
+  function activeRole(formId){
+    const btn = document.getElementById(formId).closest(".auth-card").querySelector(".role-toggle .active");
+    return btn ? btn.dataset.role : "donor";
+  }
+  function formValid(form){
+    let ok = true;
+    form.querySelectorAll(".field").forEach(function(field){
+      const input = field.querySelector("input, select, textarea");
+      if(!input) return;
+      const v = input.value.trim();
+      let valid = !(input.hasAttribute("required") && v === "");
+      if(input.type === "email" && v) valid = valid && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+      if(input.type === "password" && v) valid = valid && v.length >= 6;
+      validateField(field, valid);
+      if(!valid) ok = false;
+    });
+    return ok;
+  }
+  function wireForm(id, handler){
+    const form = document.getElementById(id);
+    form.addEventListener("submit", async function(e){
+      e.preventDefault(); e.stopImmediatePropagation();
+      if(!formValid(form)) return;
+      const btn = form.querySelector("button[type=submit]");
+      if(btn) btn.disabled = true;
+      try { await handler(form); }
+      catch(err){ showToast(err.message); }
+      finally { if(btn) btn.disabled = false; }
+    }, true);
+  }
+
+  let currentUser = null;
+  function refreshUserUI(){
+    document.querySelectorAll(".nav-actions .btn").forEach(function(b){
+      if(b.dataset.view === "login" && currentUser){
+        b.textContent = "Log out"; b.removeAttribute("data-view"); b.dataset.action = "logout";
+      }
+    });
+  }
+  document.addEventListener("click", async function(e){
+    if(e.target.closest("[data-action=logout]")){
+      e.preventDefault(); e.stopPropagation();
+      await api("logout.php", { method: "POST", data: {} }).catch(function(){});
+      location.reload();
+    }
+  }, true);
+
+  wireForm("register-form", async function(form){
+    const r = await api("register.php", { method: "POST", data: {
+      role: activeRole("register-form"),
+      name: document.getElementById("reg-name").value.trim(),
+      email: document.getElementById("reg-email").value.trim(),
+      bloodType: document.getElementById("reg-blood-type").value,
+      city: document.getElementById("reg-city").value.trim(),
+      password: document.getElementById("reg-password").value
+    }});
+    showToast(r.message); form.reset(); location.hash = "login";
+  });
+
+  wireForm("login-form", async function(form){
+    const r = await api("login.php", { method: "POST", data: {
+      role: activeRole("login-form"),
+      email: document.getElementById("login-email").value.trim(),
+      password: document.getElementById("login-password").value
+    }});
+    currentUser = r.user; showToast(r.message); form.reset(); refreshUserUI();
+    location.hash = "dashboard";
+  });
+
+  wireForm("post-request-form", async function(form){
+    const r = await api("emergency.php", { method: "POST", data: {
+      type: document.getElementById("req-blood-type").value,
+      units: Number(document.getElementById("req-units").value),
+      hospital: document.getElementById("req-hospital").value.trim(),
+      urgency: document.getElementById("req-urgency").value
+    }});
+    showToast(r.message); form.reset();
+    document.getElementById("post-form-panel").style.display = "none";
+    EMERGENCY_REQUESTS = await fetchEmergencyRequests(); renderRequests();
+  });
+
+  api("me.php").then(function(r){ currentUser = r.user; refreshUserUI(); }).catch(function(){});
+})();
+</script>
 </body>
 </html>
