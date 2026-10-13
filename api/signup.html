@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LifeFlow — Sign Up</title>
+</head>
+<body style="font-family:Arial;max-width:400px;margin:40px auto;padding:0 16px">
+  <h3>LifeFlow — Create Account</h3>
+  
+  <div>
+    <p>Full Name<br><input id="n" style="width:100%;padding:8px;box-sizing:border-box;"></p>
+    <p>Email<br><input id="e" type="email" style="width:100%;padding:8px;box-sizing:border-box;"></p>
+    <p>Blood type<br>
+      <select id="b" style="width:100%;padding:8px;box-sizing:border-box;">
+        <option>A+</option><option>A-</option>
+        <option>B+</option><option>B-</option>
+        <option>AB+</option><option>AB-</option>
+        <option>O+</option><option>O-</option>
+      </select>
+    </p>
+    <p>City<br><input id="c" style="width:100%;padding:8px;box-sizing:border-box;" value="Bengaluru"></p>
+    <p>Password<br><input id="p" type="password" style="width:100%;padding:8px;box-sizing:border-box;"></p>
+    
+    <!-- Using type="button" ensures it NEVER submits to a server -->
+    <button type="button" id="go" style="width:100%;padding:12px;background:#D62839;color:white;border:none;border-radius:4px;font-weight:bold;cursor:pointer;">Create account</button>
+  </div>
+
+  <p id="m" style="margin-top:15px;font-weight:bold;"></p>
+  <p style="text-align:center;margin-top:20px;">Already have an account? <a href="login.html">Log in</a></p>
+
+  <script>
+    document.getElementById("go").onclick = function () {
+      var m = document.getElementById("m");
+      const name = document.getElementById("n").value;
+      const email = document.getElementById("e").value;
+      const bloodType = document.getElementById("b").value;
+      const city = document.getElementById("c").value;
+      const password = document.getElementById("p").value;
+
+      if (!email || !password || !name) {
+        m.style.color = "red";
+        m.textContent = "Please fill in all fields.";
+        return;
+      }
+
+      let users = JSON.parse(localStorage.getItem("lifeflow_users") || "[]");
+
+      if (users.find(u => u.email === email)) {
+        m.style.color = "red";
+        m.textContent = "An account with this email already exists.";
+        return;
+      }
+
+      users.push({ name, email, bloodType, city, password });
+      localStorage.setItem("lifeflow_users", JSON.stringify(users));
+
+      m.style.color = "green";
+      m.textContent = "Account created successfully! Redirecting to login...";
+      setTimeout(() => window.location.href = "login.html", 1500);
+    };
+  </script>
+</body>
+</html>
