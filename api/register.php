@@ -1,5 +1,5 @@
 <?php
-require __DIR__ . '/bootstrap.php';
+require 'bootstrap.php';
 require_method('POST');
 $in = body();
 
@@ -21,7 +21,7 @@ $st = db()->prepare('SELECT 1 FROM users WHERE email = ?');
 $st->execute([$email]);
 if ($st->fetch()) fail('An account with this email already exists.', 409);
 
-db()->prepare('INSERT INTO users (role, name, email, password_hash, blood_type, city) VALUES ("donor", ?, ?, ?, ?, ?)')
-    ->execute([$name, $email, password_hash($pass, PASSWORD_DEFAULT), $type, $city]);
+db()->prepare('INSERT INTO users (role, name, email, password_hash, blood_type, city) VALUES (?, ?, ?, ?, ?, ?)')
+    ->execute(['donor', $name, $email, password_hash($pass, PASSWORD_DEFAULT), $type, $city]);
 
 respond(['ok' => true, 'message' => 'Account created. You can now log in.'], 201);
