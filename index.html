@@ -35,6 +35,45 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LifeFlow — Blood Donation & Booking Platform</title>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LifeFlow — Blood Donation Platform</title>
+  
+  <!-- DEBUG SCRIPT: Shows a black bar at the bottom to track app actions -->
+  <script>
+  (function(){
+    var bar = null;
+    function say(t){ if(bar) bar.textContent = t; }
+    document.addEventListener("DOMContentLoaded", function(){
+      bar = document.createElement("div");
+      bar.id = "lfbar";
+      bar.style.cssText = "position:fixed;left:0;right:0;bottom:0;z-index:99999;background:#222;color:#fff;padding:10px;font:14px Arial";
+      bar.textContent = "Status: Debug bar loaded successfully";
+      document.body.appendChild(bar);
+    });
+    document.addEventListener("click", function(e){
+      var b = e.target.closest('a, button');
+      if(b){ say("Clicked: " + (b.textContent.trim() || b.href)); }
+    }, true);
+  })();
+  </script>
+</head>
+<body style="font-family:Arial;margin:0;padding:20px;background:#f9f9f9;">
+  <div style="max-width:800px;margin:40px auto;background:white;padding:30px;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,0.1);">
+    <h1 style="color:#D62839;">LifeFlow</h1>
+    <p>Geolocation-Based Blood Donation & Appointment Booking Network for Bengaluru.</p>
+    
+    <div style="margin-top:30px;">
+      <a href="signup.html" style="background:#D62839;color:white;padding:12px 20px;text-decoration:none;border-radius:4px;font-weight:bold;">Register as a Donor</a>
+      <a href="login.html" style="margin-left:10px;background:#333;color:white;padding:12px 20px;text-decoration:none;border-radius:4px;font-weight:bold;">Log In</a>
+      <a href="setup.html" style="margin-left:10px;background:#555;color:white;padding:12px 20px;text-decoration:none;border-radius:4px;font-weight:bold;">Setup Data</a>
+    </div>
+  </div>
+</body>
+</html>
 <meta name="description" content="LifeFlow connects voluntary donors with nearby blood banks in real time and lets them book donation appointments in a few taps.">
 
 <style>
