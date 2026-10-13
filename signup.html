@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LifeFlow — Sign Up</title>
+</head>
+<body style="font-family:Arial,sans-serif;max-width:400px;margin:40px auto;padding:0 16px;background:#f9f9f9;">
+
+  <div style="background:white;padding:24px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.1);">
+    <h3 style="color:#D62839;margin-top:0;">LifeFlow — Create Account</h3>
+    
+    <p style="margin-bottom:4px;font-weight:bold;">Full Name</p>
+    <input id="n" type="text" placeholder="John Doe" style="width:100%;padding:10px;box-sizing:border-box;border:1px solid #ccc;border-radius:4px;">
+
+    <p style="margin-bottom:4px;font-weight:bold;margin-top:12px;">Email</p>
+    <input id="e" type="email" placeholder="donor@example.com" style="width:100%;padding:10px;box-sizing:border-box;border:1px solid #ccc;border-radius:4px;">
+
+    <p style="margin-bottom:4px;font-weight:bold;margin-top:12px;">Blood Type</p>
+    <select id="b" style="width:100%;padding:10px;box-sizing:border-box;border:1px solid #ccc;border-radius:4px;">
+      <option>A+</option><option>A-</option>
+      <option>B+</option><option>B-</option>
+      <option>AB+</option><option>AB-</option>
+      <option>O+</option><option>O-</option>
+    </select>
+
+    <p style="margin-bottom:4px;font-weight:bold;margin-top:12px;">City</p>
+    <input id="c" type="text" value="Bengaluru" style="width:100%;padding:10px;box-sizing:border-box;border:1px solid #ccc;border-radius:4px;">
+
+    <p style="margin-bottom:4px;font-weight:bold;margin-top:12px;">Password</p>
+    <input id="p" type="password" placeholder="••••••••" style="width:100%;padding:10px;box-sizing:border-box;border:1px solid #ccc;border-radius:4px;">
+
+    <button type="button" onclick="handleSignup()" style="width:100%;padding:12px;background:#D62839;color:white;border:none;border-radius:4px;font-size:16px;font-weight:bold;cursor:pointer;margin-top:20px;">Create account</button>
+    
+    <p id="m" style="margin-top:15px;font-weight:bold;text-align:center;min-height:20px;"></p>
+    <p style="text-align:center;margin-top:20px;font-size:14px;">Already registered? <a href="login.html" style="color:#D62839;">Log in</a></p>
+  </div>
+
+  <script>
+    function handleSignup() {
+      var msg = document.getElementById("m");
+      var name = document.getElementById("n").value.trim();
+      var email = document.getElementById("e").value.trim();
+      var bloodType = document.getElementById("b").value;
+      var city = document.getElementById("c").value.trim();
+      var password = document.getElementById("p").value;
+
+      msg.style.color = "#333";
+      msg.textContent = "Processing...";
+
+      if (!name || !email || !password) {
+        msg.style.color = "red";
+        msg.textContent = "Please fill in Name, Email, and Password.";
+        return;
+      }
+
+      try {
+        var existing = localStorage.getItem("lifeflow_users");
+        var users = existing ? JSON.parse(existing) : [];
+
+        var duplicate = users.find(function(u) { return u.email === email; });
+        if (duplicate) {
+          msg.style.color = "red";
+          msg.textContent = "An account with this email already exists.";
+          return;
+        }
+
+        users.push({
+          name: name,
+          email: email,
+          bloodType: bloodType,
+          city: city,
+          password: password
+        });
+
+        localStorage.setItem("lifeflow_users", JSON.stringify(users));
+
+        msg.style.color = "green";
+        msg.textContent = "Account created! Redirecting to login...";
+
+        setTimeout(function() {
+          window.location.href = "login.html";
+        }, 1200);
+
+      } catch (err) {
+        msg.style.color = "red";
+        msg.textContent = "Error saving data: " + err.message;
+      }
+    }
+  </script>
+</body>
+</html>
