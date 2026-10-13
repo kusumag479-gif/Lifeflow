@@ -1,6 +1,37 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<script>
+(function(){
+  var bar = null;
+  function say(t){ if(bar) bar.textContent = t; }
+  document.addEventListener("DOMContentLoaded", function(){
+    bar = document.createElement("div");
+    bar.id = "lfbar";
+    bar.style.cssText = "position:fixed;left:0;right:0;bottom:0;z-index:99999;background:#222;color:#fff;padding:10px;font:14px Arial";
+    bar.textContent = "Status: new script loaded";
+    document.body.appendChild(bar);
+  });
+  document.addEventListener("click", function(e){
+    var b = e.target.closest('button[type="submit"]');
+    if(b){ e.stopPropagation(); say("Clicked: " + b.textContent.trim()); }
+  }, true);
+  var of = window.fetch;
+  window.fetch = function(u, o){
+    var name = String(u);
+    say("Sending: " + name + " ...");
+    return of.apply(this, arguments).then(function(r){
+      return r.clone().text().then(function(t){
+        say(name + " -> " + r.status + " " + t.slice(0, 150));
+        return r;
+      });
+    }, function(err){
+      say(name + " FAILED: " + err.message);
+      throw err;
+    });
+  };
+})();
+</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LifeFlow — Blood Donation & Booking Platform</title>
