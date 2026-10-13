@@ -46,4 +46,4 @@ try {
     if ($pdo->inTransaction()) $pdo->rollBack();
     throw $e;
 }
-respond(['ok' => true, 'id' => $id, 'message' => 'Appointment reserved at ' . $bank['name'] . ' on ' . $start->format('j M, g:i A') . '.'], 201);
+respond(['ok' => true, 'id' => $id, 'message' => 'Booking confirmed at ' . $bank['name'] . ' on ' . $start->format('j M, g:i A') . '.'], 201);
