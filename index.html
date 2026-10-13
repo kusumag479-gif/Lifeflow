@@ -1167,5 +1167,13 @@ document.addEventListener("DOMContentLoaded", () => {
   api("me.php").then(function(r){ currentUser = r.user; refreshUserUI(); }).catch(function(){});
 })();
 </script>
+<script>
+document.addEventListener("click",function(e){
+ if(e.target.closest('button[type="submit"]'))e.stopPropagation();
+}, true);
+</script>
+</body>
+</html>
+</script>
 </body>
 </html>
