@@ -1,0 +1,21 @@
+<?php
+require 'config.php';
+header('Content-Type: text/plain');
+echo 'DB_HOST: ' . (getenv('DB_HOST') ?: 'NOT SET') . "\n";
+echo 'DB_PORT: ' . (getenv('DB_PORT') ?: 'NOT SET') . "\n";
+echo 'DB_NAME: ' . (getenv('DB_NAME') ?: 'NOT SET') . "\n";
+echo 'DB_USER: ' . (getenv('DB_USER') ?: 'NOT SET') . "\n";
+echo 'DB_PASS length: ' . strlen((string)getenv('DB_PASS')) . "\n";
+echo 'DB_SSL: ' . (getenv('DB_SSL') ?: 'NOT SET') . "\n\n";
+try {
+    $opts = [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION];
+    if (DB_SSL) {
+        $opts[PDO::MYSQL_ATTR_SSL_CA] = '/etc/ssl/certs/ca-certificates.crt';
+        $opts[PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = false;
+    }
+    $pdo = new PDO(DB_DSN, DB_USER, DB_PASS, $opts);
+    echo "Connected OK\n";
+    echo "Tables:\n";
+    foreach ($pdo->query('SHOW TABLES') as $r) { echo ' - ' . $r[0] . "\n"; }
+} catch (Throwable $e) {
+    echo 'ERROR: ' . $e->getMessage() . "\n";
