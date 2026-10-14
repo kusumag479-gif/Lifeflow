@@ -1,79 +1,84 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-</script>
-(function(){
-  var bar = null;
-  function say(t){ if(bar) bar.textContent = t; }
-  document.addEventListener("DOMContentLoaded", function(){
-    bar = document.createElement("div");
-    bar.id = "lfbar";
-    bar.style.cssText = "position:fixed;left:0;right:0;bottom:0;z-index:99999;background:#222;color:#fff;padding:10px;font:14px Arial";
-    bar.textContent = "Status: new script loaded";
-    document.body.appendChild(bar);
-  });
-  document.addEventListener("click", function(e){
-    var b = e.target.closest('button[type="submit"]');
-    if(b){ e.stopPropagation(); say("Clicked: " + b.textContent.trim()); }
-  }, true);
-  var of = window.fetch;
-  window.fetch = function(u, o){
-    var name = String(u);
-    say("Sending: " + name + " ...");
-    return of.apply(this, arguments).then(function(r){
-      return r.clone().text().then(function(t){
-        say(name + " -> " + r.status + " " + t.slice(0, 150));
-        return r;
-      });
-    }, function(err){
-      say(name + " FAILED: " + err.message);
-      throw err;
-    });
-  };
-})();
-</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LifeFlow — Blood Donation & Booking Platform</title>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LifeFlow — Blood Donation Platform</title>
-  
-  <!-- DEBUG SCRIPT: Shows a black bar at the bottom to track app actions -->
-  <script>
-  (function(){
-    var bar = null;
-    function say(t){ if(bar) bar.textContent = t; }
-    document.addEventListener("DOMContentLoaded", function(){
-      bar = document.createElement("div");
-      bar.id = "lfbar";
-      bar.style.cssText = "position:fixed;left:0;right:0;bottom:0;z-index:99999;background:#222;color:#fff;padding:10px;font:14px Arial";
-      bar.textContent = "Status: Debug bar loaded successfully";
-      document.body.appendChild(bar);
-    });
-    document.addEventListener("click", function(e){
-      var b = e.target.closest('a, button');
-      if(b){ say("Clicked: " + (b.textContent.trim() || b.href)); }
-    }, true);
-  })();
-  </script>
-</head>
-<body style="font-family:Arial;margin:0;padding:20px;background:#f9f9f9;">
-  <div style="max-width:800px;margin:40px auto;background:white;padding:30px;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,0.1);">
-    <h1 style="color:#D62839;">LifeFlow</h1>
-    <p>Geolocation-Based Blood Donation & Appointment Booking Network for Bengaluru.</p>
-    
-    <div style="margin-top:30px;">
-      <a href="signup.html" style="background:#D62839;color:white;padding:12px 20px;text-decoration:none;border-radius:4px;font-weight:bold;">Register as a Donor</a>
-      <a href="login.html" style="margin-left:10px;background:#333;color:white;padding:12px 20px;text-decoration:none;border-radius:4px;font-weight:bold;">Log In</a>
-    </div>
-  </div>
-</body>
-</html>
 <meta name="description" content="LifeFlow connects voluntary donors with nearby blood banks in real time and lets them book donation appointments in a few taps.">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+(function(){
+  document.addEventListener("click", function(e){
+    if(e.target.closest('button[type="submit"]')) e.stopPropagation();
+  }, true);
+
+  var NAVY = "#14213D", RED = "#D62839", TEAL = "#2A9D8F", SOFT = "#5B6478", LINE = "#E1E4EA";
+  var GAP_DAYS = 90;
+  var overlay = null;
+
+  function el(tag, css, text){
+    var n = document.createElement(tag);
+    if(css) n.style.cssText = css;
+    if(text !== undefined) n.textContent = text;
+    return n;
+  }
+  function pad(n){ return String(n).padStart(2, "0"); }
+  function closeOverlay(){ if(overlay){ overlay.remove(); overlay = null; } }
+  function openOverlay(){
+    closeOverlay();
+    overlay = el("div", "position:fixed;top:0;left:0;right:0;bottom:0;z-index:99999;background:rgba(20,33,61,.55);display:flex;align-items:center;justify-content:center;padding:16px;overflow:auto;font-family:Arial,sans-serif");
+    overlay.addEventListener("click", function(e){ if(e.target === overlay) closeOverlay(); });
+    document.body.appendChild(overlay);
+    return overlay;
+  }
+  function prettyDate(dt){
+    return dt.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  }
+  function parseDate(s){ var p = s.split("-"); return new Date(+p[0], +p[1] - 1, +p[2]); }
+  function to12(t){
+    var p = t.split(":"), h = +p[0], ap = h >= 12 ? "PM" : "AM";
+    h = h % 12 || 12;
+    return h + ":" + p[1] + " " + ap;
+  }
+  function to24(label){
+    var m = String(label).match(/(/d+):(\d+)(?::\d+)?\s*(AM|PM)?/i);
+    var h = +m[1];
+    if(m[3]){ h = h % 12; if(m[3].toUpperCase() === "PM") h += 12; }
+    return [h, +m[2]];
+  }
+function niceTime(label){:
+  var t = to24(label);
+  return to12(pad(t[0])  + ":" + pad(t[1]));
+ function daysUntil(dt){
+    var t = new Date(); t.setHours(0, 0, 0, 0);
+    return Math.round((dt - t) / 86400000);
+  }
+  function countdown(dt){
+    var n = daysUntil(dt);
+    if(n < 0) return "";
+    if(n === 0) return "Today";
+    if(n === 1) return "Tomorrow";
+    return "In " + n + " days";
+  }
+  function btn(label, bg, color, fn){
+    var b = el("button", "flex:1;padding:11px 12px;border:0;border-radius:8px;font:600 13px Arial;cursor:pointer;background:" + bg + ";color:" + color, label);
+    b.type = "button";
+    b.addEventListener("click", fn);
+    return b;
+  }
+  function row(label, value){
+    var r = el("div", "display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid " + LINE + ";font-size:14px");
+    r.appendChild(el("span", "color:" + SOFT, label));
+    r.appendChild(el("span", "color:" + NAVY + ";font-weight:600;text-align:right", value));
+    return r;
+  }
+
+  function addToCalendar(info){
+    var d = info.date.split("-"), t = to24(info.time);
+    var start = d[0] + d[1] + d[2] + "T" + pad(t[0]) + pad(t[1]) + "00";
+    var endMin = t[0] * 60 + t[1] + 30;
+    var end = d[0] + d[1] + d[2] + "T" + pad(Math.floor(endMin / 60)) + pad(endMin % 60) + "00";
+    function esc(s){ return String(s).re
 
 <style>
 /* =========================================================
@@ -1065,7 +1070,6 @@ document.addEventListener("DOMContentLoaded", () => {
   route();
 });
 </script>
-</body>
 <script>
 /* ---------- Real API layer (PHP + MySQL) ---------- */
 (function(){
