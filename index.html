@@ -2,6 +2,228 @@
 <html lang="en">
 <head>
 <script>
+<script>
+(function(){
+  /* 1. Let form submit buttons work (the original page cancels them) */
+  document.addEventListener("click", function(e){
+    if(e.target.closest('button[type="submit"]')) e.stopPropagation();
+  }, true);
+
+  /* 2. Booking confirmation card, calendar file, WhatsApp share, My bookings */
+  var NAVY = "#14213D", RED = "#D62839", TEAL = "#2A9D8F", SOFT = "#5B6478", LINE = "#E1E4EA";
+  var GAP_DAYS = 90;
+  var overlay = null;
+
+  function el(tag, css, text){
+    var n = document.createElement(tag);
+    if(css) n.style.cssText = css;
+    if(text !== undefined) n.textContent = text;
+    return n;
+  }
+  function pad(n){ return String(n).padStart(2, "0"); }
+  function closeOverlay(){ if(overlay){ overlay.remove(); overlay = null; } }
+  function openOverlay(){
+    closeOverlay();
+    overlay = el("div", "position:fixed;top:0;left:0;right:0;bottom:0;z-index:99999;background:rgba(20,33,61,.55);display:flex;align-items:center;justify-content:center;padding:16px;overflow:auto;font-family:Arial,sans-serif");
+    overlay.addEventListener("click", function(e){ if(e.target === overlay) closeOverlay(); });
+    document.body.appendChild(overlay);
+    return overlay;
+  }
+  function prettyDate(dt){
+    return dt.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  }
+  function parseDate(s){ var p = s.split("-"); return new Date(+p[0], +p[1] - 1, +p[2]); }
+  function to12(t){
+    var p = t.split(":"), h = +p[0], ap = h >= 12 ? "PM" : "AM";
+    h = h % 12 || 12;
+    return h + ":" + p[1] + " " + ap;
+  }
+  function to24(label){
+    var m = label.match(/(\d+):(\d+)\s*(AM|PM)/i);
+    var h = +m[1] % 12; if(m[3].toUpperCase() === "PM") h += 12;
+    return [h, +m[2]];
+  }
+  function bookingId(n){ return "LF-" + String(n).padStart(5, "0"); }
+  function daysUntil(dt){
+    var t = new Date(); t.setHours(0, 0, 0, 0);
+    return Math.round((dt - t) / 86400000);
+  }
+  function countdown(dt){
+    var n = daysUntil(dt);
+    if(n < 0) return "";
+    if(n === 0) return "Today";
+    if(n === 1) return "Tomorrow";
+    return "In " + n + " days";
+  }
+  function btn(label, bg, color, fn){
+    var b = el("button", "flex:1;padding:11px 12px;border:0;border-radius:8px;font:600 13px Arial;cursor:pointer;background:" + bg + ";color:" + color, label);
+    b.type = "button";
+    b.addEventListener("click", fn);
+    return b;
+  }
+  function row(label, value){
+    var r = el("div", "display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid " + LINE + ";font-size:14px");
+    r.appendChild(el("span", "color:" + SOFT, label));
+    r.appendChild(el("span", "color:" + NAVY + ";font-weight:600;text-align:right", value));
+    return r;
+  }
+
+  function addToCalendar(info){
+    var d = info.date.split("-"), t = to24(info.time);
+    var start = d[0] + d[1] + d[2] + "T" + pad(t[0]) + pad(t[1]) + "00";
+    var endMin = t[0] * 60 + t[1] + 30;
+    var end = d[0] + d[1] + d[2] + "T" + pad(Math.floor(endMin / 60)) + pad(endMin % 60) + "00";
+    function esc(s){ return String(s).replace(/([,;])/g, "\\$1"); }
+    var now = new Date();
+    var stamp = now.getUTCFullYear() + pad(now.getUTCMonth() + 1) + pad(now.getUTCDate()) + "T" + pad(now.getUTCHours()) + pad(now.getUTCMinutes()) + "00Z";
+    var lines = [
+      "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//LifeFlow//Booking//EN", "BEGIN:VEVENT",
+      "UID:" + bookingId(info.id) + "@lifeflow", "DTSTAMP:" + stamp,
+      "DTSTART:" + start, "DTEND:" + end,
+      "SUMMARY:" + esc("Blood donation - " + info.bank),
+      "LOCATION:" + esc(info.bank + (info.area ? ", " + info.area : "")),
+      "DESCRIPTION:" + esc("LifeFlow booking " + bookingId(info.id)),
+      "END:VEVENT", "END:VCALENDAR"
+    ];
+    var blob = new Blob([lines.join("\r\n")], { type: "text/calendar" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "lifeflow-" + bookingId(info.id) + ".ics";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
+
+  function shareWhatsApp(info){
+    var dt = parseDate(info.date);
+    var msg = "I booked a blood donation on LifeFlow.\n" + info.bank + (info.area ? ", " + info.area : "") +
+      "\n" + prettyDate(dt) + " at " + info.time + "\nBooking ID: " + bookingId(info.id) +
+      "\nJoin me and donate blood - it can save lives!";
+    window.open("https://wa.me/?text=" + encodeURIComponent(msg), "_blank");
+  }
+
+  function showConfirmed(data, req){
+    var bank = null;
+    try { if(typeof allBanks !== "undefined") bank = allBanks.find(function(b){ return String(b.id) === String(req.bankId); }); } catch(e){}
+    var info = { id: data.id, bank: bank ? bank.name : "Selected blood bank", area: bank ? bank.area : "", date: req.date, time: req.time };
+    var dt = parseDate(req.date);
+    var next = new Date(dt.getTime()); next.setDate(next.getDate() + GAP_DAYS);
+
+    var ov = openOverlay();
+    var card = el("div", "background:#fff;border-radius:14px;max-width:390px;width:100%;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,.35)");
+    var top = el("div", "background:" + TEAL + ";color:#fff;padding:18px 20px;text-align:center");
+    top.appendChild(el("div", "font-size:36px;line-height:1", "\u2713"));
+    top.appendChild(el("div", "font:700 20px Arial;margin-top:6px", "Booking confirmed"));
+    var cd = countdown(dt);
+    top.appendChild(el("div", "font-size:13px;margin-top:4px;opacity:.95", (cd ? cd + " - " : "") + "show this card at the blood bank"));
+    card.appendChild(top);
+
+    var body = el("div", "padding:10px 20px 6px");
+    body.appendChild(row("Booking ID", bookingId(info.id)));
+    body.appendChild(row("Blood bank", info.bank));
+    if(info.area) body.appendChild(row("Area", info.area));
+    body.appendChild(row("Date", prettyDate(dt)));
+    body.appendChild(row("Time", info.time));
+    body.appendChild(row("Status", "Confirmed"));
+    body.appendChild(row("Next donation possible after", prettyDate(next)));
+    card.appendChild(body);
+
+    var tips = el("div", "margin:8px 20px 12px;padding:10px 12px;background:#F5F6F8;border-radius:8px;font-size:12.5px;color:" + SOFT + ";line-height:1.5");
+    tips.appendChild(el("div", "font-weight:700;color:" + NAVY + ";margin-bottom:2px", "Before you donate"));
+    tips.appendChild(el("div", "", "Carry a photo ID, eat a proper meal and drink plenty of water. One donation can help save up to 3 lives."));
+    card.appendChild(tips);
+
+    var r1 = el("div", "display:flex;gap:8px;padding:0 20px 8px");
+    r1.appendChild(btn("Add to calendar", TEAL, "#fff", function(){ addToCalendar(info); }));
+    r1.appendChild(btn("Share on WhatsApp", "#25D366", "#fff", function(){ shareWhatsApp(info); }));
+    card.appendChild(r1);
+    var r2 = el("div", "display:flex;gap:8px;padding:0 20px 18px");
+    r2.appendChild(btn("My bookings", NAVY, "#fff", showList));
+    r2.appendChild(btn("Close", "#EEF0F4", NAVY, closeOverlay));
+    card.appendChild(r2);
+    ov.appendChild(card);
+  }
+
+  function bookingCard(a, list){
+    var dt = a.slotStart.split(" ");
+    var day = parseDate(dt[0]);
+    var c = el("div", "border:1px solid " + LINE + ";border-left:4px solid " + TEAL + ";border-radius:10px;padding:12px 14px;margin-bottom:10px");
+    var head = el("div", "display:flex;justify-content:space-between;gap:8px;align-items:flex-start");
+    head.appendChild(el("div", "font:700 15px Arial;color:" + NAVY, a.bank));
+    var cd = countdown(day);
+    if(cd) head.appendChild(el("div", "font:700 11px Arial;color:#fff;background:" + TEAL + ";padding:3px 8px;border-radius:999px;white-space:nowrap", cd));
+    c.appendChild(head);
+    c.appendChild(el("div", "font-size:13px;color:" + SOFT + ";margin-top:2px", a.area));
+    c.appendChild(el("div", "font-size:14px;color:" + NAVY + ";margin-top:8px", prettyDate(day) + " at " + to12(dt[1])));
+    c.appendChild(el("div", "font-size:12px;color:" + SOFT + ";margin-top:4px", bookingId(a.id) + "  |  Status: " + a.status));
+    var cancel = btn("Cancel booking", "#FBE9EB", RED, function(){
+      if(!window.confirm("Cancel this booking?")) return;
+      fetch("api/appointments.php", {
+        method: "POST", credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: a.id })
+      }).then(function(){ loadList(list); });
+    });
+    cancel.style.cssText += ";flex:none;margin-top:10px;padding:7px 12px";
+    c.appendChild(cancel);
+    return c;
+  }
+
+  function loadList(list){
+    list.textContent = "Loading...";
+    fetch("api/appointments.php", { credentials: "same-origin" }).then(function(r){
+      return r.json().then(function(d){ return { ok: r.ok, status: r.status, data: d }; });
+    }).then(function(res){
+      list.textContent = "";
+      if(!res.ok){
+        list.appendChild(el("div", "color:" + RED + ";font-size:14px", res.status === 401 ? "Please log in first to see your bookings." : (res.data.error || "Could not load bookings.")));
+        return;
+      }
+      if(!res.data.length){
+        list.appendChild(el("div", "color:" + SOFT + ";font-size:14px", "You have no upcoming bookings."));
+        return;
+      }
+      res.data.forEach(function(a){ list.appendChild(bookingCard(a, list)); });
+    }).catch(function(){ list.textContent = "Could not reach the server."; });
+  }
+
+  function showList(){
+    var ov = openOverlay();
+    var card = el("div", "background:#fff;border-radius:14px;max-width:420px;width:100%;max-height:90vh;overflow:auto;padding:18px;box-shadow:0 20px 50px rgba(0,0,0,.35)");
+    card.appendChild(el("div", "font:700 18px Arial;color:" + NAVY + ";margin-bottom:12px", "My bookings"));
+    var list = el("div", "font-size:14px;color:" + SOFT);
+    card.appendChild(list);
+    var close = btn("Close", "#EEF0F4", NAVY, closeOverlay);
+    close.style.cssText += ";width:100%;flex:none;margin-top:6px";
+    card.appendChild(close);
+    ov.appendChild(card);
+    loadList(list);
+  }
+
+  /* show the card whenever a booking succeeds */
+  var realFetch = window.fetch;
+  window.fetch = function(u, o){
+    var p = realFetch.apply(this, arguments);
+    try {
+      if(String(u).indexOf("book.php") !== -1 && o && o.method === "POST"){
+        var req = JSON.parse(o.body);
+        p.then(function(r){
+          if(r.status === 201){ r.clone().json().then(function(d){ showConfirmed(d, req); }); }
+        });
+      }
+    } catch(e){}
+    return p;
+  };
+
+  /* floating My bookings button */
+  document.addEventListener("DOMContentLoaded", function(){
+    var fab = el("button", "position:fixed;right:14px;bottom:14px;z-index:9998;padding:10px 16px;border:0;border-radius:999px;background:" + NAVY + ";color:#fff;font:600 13px Arial;box-shadow:0 4px 14px rgba(0,0,0,.25);cursor:pointer", "My bookings");
+    fab.type = "button";
+    fab.addEventListener("click", showList);
+    document.body.appendChild(fab);
+  });
+})();
+</script>
 (function(){
   var bar = null;
   function say(t){ if(bar) bar.textContent = t; }
