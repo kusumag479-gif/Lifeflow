@@ -2,7 +2,7 @@
 require __DIR__ . '/bootstrap.php';
 require_method('POST');
 $user = require_login('donor');
-$in = body();E
+$in = body();
 
 $bankId = (int)($in['bankId'] ?? 0);
 $date   = (string)($in['date'] ?? '');
