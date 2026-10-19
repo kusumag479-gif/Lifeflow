@@ -471,9 +471,10 @@ input:focus, select:focus, textarea:focus{ border-color: var(--pulse); }
           <a class="btn btn-ghost" data-view="dashboard">Search Blood Banks</a>
         </div>
         <div class="stat-row">
-          <div class="stat"><b>4</b><span>Partner blood banks</span></div>
-          <div class="stat"><b>151 U</b><span>Units in network right now</span></div>
-          <div class="stat"><b>4</b><span>Active emergency requests</span></div>
+          <div class="stat-banks">
+          <div class="stat"><b id="stat-banks">4</b><span>Partner blood banks</span></div>
+          <div class="stat"><b id="stat-units">151 U</b><span>Units in network right now</span></div>
+          <div class="stat"><b id="stat-emergency">4</b><span>Active emergency requests</span></div>
         </div>
       </div>
       <div class="stock-board" aria-label="Live network blood stock">
@@ -524,7 +525,7 @@ input:focus, select:focus, textarea:focus{ border-color: var(--pulse); }
       <div class="emergency-banner">
         <div>
           <h2>Active emergency requests need your blood type</h2>
-          <p>4 hospitals in Bengaluru are short on specific blood types right now.</p>
+          <p>hospitals in Bengaluru are short on specific blood types right now.</p>
         </div>
         <a class="btn btn-teal" data-view="emergency">View Emergency Board</a>
       </div>
@@ -809,7 +810,15 @@ function initStockBoard(){
       const status = stockStatus(item.units);
       return `<div class="blood-tile"><div class="type">${item.type}</div><div class="units"><span class="status-dot status-${status}"></span>${item.units} U</div></div>`;
     }).join("");
+    const total = stock.reduce((sum,item) => sum + Number(item.units), 0);
+    document.getElementById("stat-units").textContent = total + "U";
   });
+  fetchEmergencyRequests().then(list => {
+    document.getElementById("stat-emergency").textContent = list.length;
+});
+  api("banks.php").then(banks => {
+    document.getElementById("stat-banks").textContent = banks.length;
+  }).catch(() => {});
 }
 
 function showToast(message){
